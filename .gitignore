@@ -1,0 +1,6 @@
+出力/
+*.mp4
+*.json
+*.ass
+__pycache__/
+.streamlit/secrets.toml
