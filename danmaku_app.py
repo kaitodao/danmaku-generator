@@ -81,7 +81,7 @@ def download_video_and_chat(url: str, work_dir: str, progress_placeholder):
     video_path = os.path.join(work_dir, f"video_{vid}.mp4")
     cmd_video = [
         "yt-dlp",
-        "-f", "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best",
+        "-f", "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best",
         "--merge-output-format", "mp4",
         "-o", video_path,
         url,
@@ -239,14 +239,15 @@ def burn_danmaku(video_path: str, ass_path: str, output_path: str, progress_plac
         "-i", video_path,
         "-vf", f"ass={ass_path}",
         "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "23",
+        "-preset", "ultrafast",
+        "-crf", "26",
         "-c:a", "aac",
-        "-b:a", "128k",
+        "-b:a", "96k",
         "-movflags", "+faststart",
+        "-threads", "0",
         output_path,
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=1200)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
     return result.returncode == 0, result.stderr[-500:] if result.returncode != 0 else ""
 
 
@@ -268,7 +269,7 @@ with st.expander("詳細設定"):
         scroll_speed = st.slider("スクロール速度（秒）", 4.0, 14.0, 8.0, step=0.5)
     with col2:
         max_minutes = st.number_input(
-            "最大時間（分, 0=全編）", min_value=0, max_value=300, value=0
+            "最大時間（分, 0=全編）", min_value=0, max_value=300, value=30
         )
         include_emoji = st.checkbox("絵文字を含める", value=False)
 
