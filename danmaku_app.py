@@ -318,15 +318,6 @@ with st.expander("詳細設定"):
         telop_font_size = st.slider("テロップ文字サイズ", 12, 80, 36, step=4)
     with tcol4:
         telop_color = st.color_picker("テロップ文字色", value="#FFFFFF")
-    if telop_text:
-        st.markdown(
-            f'<div style="background:#222; padding:8px 12px; border-radius:6px; text-align:center;">'
-            f'<span style="font-size:{telop_font_size}px; color:{telop_color}; '
-            f'text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000;">'
-            f'{telop_text}</span></div>',
-            unsafe_allow_html=True,
-        )
-
     st.markdown("**弾幕設定**")
     col1, col2 = st.columns(2)
     with col1:
@@ -334,13 +325,41 @@ with st.expander("詳細設定"):
         scroll_speed = st.slider("スクロール速度（秒）", 4.0, 14.0, 8.0, step=0.5)
     with col2:
         include_emoji = st.checkbox("絵文字を含める", value=False)
+
+    # --- 動画風プレビュー（16:9） ---
+    st.markdown("**プレビュー（実際の動画イメージ）**")
+    telop_html = ""
+    if telop_text:
+        telop_html = (
+            f'<div style="position:absolute; top:8px; left:0; right:0; text-align:center; z-index:2;">'
+            f'<span style="font-size:{telop_font_size}px; color:{telop_color}; '
+            f'text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000;">'
+            f'{telop_text}</span></div>'
+        )
     st.markdown(
-        f'<div style="background:#222; padding:8px 12px; border-radius:6px; overflow:hidden;">'
-        f'<span style="font-size:{font_size}px; color:#0f0; white-space:nowrap;">'
-        f'弾幕サンプルテキスト</span>'
-        f'&nbsp;&nbsp;&nbsp;'
-        f'<span style="font-size:{font_size}px; color:#ff0; white-space:nowrap;">'
-        f'コメントサンプル</span></div>',
+        f'<div style="position:relative; width:100%; aspect-ratio:16/9; background:#111; '
+        f'border-radius:8px; overflow:hidden; border:1px solid #444;">'
+        # テロップ
+        f'{telop_html}'
+        # 弾幕（上部）
+        f'<div style="position:absolute; top:25%; left:10%; z-index:1;">'
+        f'<span style="font-size:{font_size}px; color:#0f0; white-space:nowrap; '
+        f'text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">'
+        f'弾幕サンプルテキスト</span></div>'
+        # 弾幕（中部）
+        f'<div style="position:absolute; top:45%; right:5%; z-index:1;">'
+        f'<span style="font-size:{font_size}px; color:#ff0; white-space:nowrap; '
+        f'text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">'
+        f'コメントサンプル</span></div>'
+        # 弾幕（下部）
+        f'<div style="position:absolute; top:65%; left:30%; z-index:1;">'
+        f'<span style="font-size:{font_size}px; color:#f0f; white-space:nowrap; '
+        f'text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">'
+        f'wwwww</span></div>'
+        # 中央の再生ボタン風
+        f'<div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); '
+        f'font-size:48px; color:rgba(255,255,255,0.2);">▶</div>'
+        f'</div>',
         unsafe_allow_html=True,
     )
 
