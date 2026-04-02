@@ -81,7 +81,7 @@ def download_video_and_chat(url: str, work_dir: str, progress_placeholder):
     video_path = os.path.join(work_dir, f"video_{vid}.mp4")
     cmd_video = [
         "yt-dlp",
-        "-f", "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best",
+        "-f", "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best",
         "--merge-output-format", "mp4",
         "-o", video_path,
         url,
@@ -265,7 +265,7 @@ url = st.text_input("YouTube URL", placeholder="https://www.youtube.com/watch?v=
 with st.expander("詳細設定"):
     col1, col2 = st.columns(2)
     with col1:
-        font_size = st.slider("文字サイズ", 24, 72, 48, step=4)
+        font_size = st.slider("文字サイズ", 12, 72, 48, step=4)
         scroll_speed = st.slider("スクロール速度（秒）", 4.0, 14.0, 8.0, step=0.5)
     with col2:
         max_minutes = st.number_input(
