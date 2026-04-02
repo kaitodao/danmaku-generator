@@ -235,9 +235,46 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 # ===========================================================
 # 3. FFmpegで弾幕を動画に焼き付け
 # ===========================================================
+FONT_FILE_MAP = {
+    "ゴシック（Noto Sans CJK JP）": [
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
+    ],
+    "明朝（Noto Serif CJK JP）": [
+        "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSerifCJK-Regular.ttc",
+        "/System/Library/Fonts/ヒラギノ明朝 ProN.ttc",
+    ],
+    "じゆうちょうフォント": [
+        "/usr/share/fonts/truetype/jiyucho/JiyuchoRegular.ttf",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
+    ],
+}
+
+
+def find_font_file(font_name: str) -> str:
+    candidates = FONT_FILE_MAP.get(font_name, [])
+    for fp in candidates:
+        if os.path.exists(fp):
+            return fp
+    # フォールバック
+    for fp in [
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
+    ]:
+        if os.path.exists(fp):
+            return fp
+    return ""
+
+
 def burn_danmaku(video_path: str, ass_path: str, output_path: str, progress_placeholder,
                  start_seconds: int = 0, end_seconds: int = 0,
-                 telop_text: str = "", telop_font_size: int = 36, telop_color: str = "#FFFFFF"):
+                 telop_text: str = "", telop_font_size: int = 36,
+                 telop_color: str = "#FFFFFF", telop_stroke_color: str = "#000000",
+                 telop_stroke_width: int = 3, telop_font: str = "ゴシック（Noto Sans CJK JP）"):
     """ASSファイルを動画にオーバーレイ（時間指定・テロップ対応）"""
     progress_placeholder.text("弾幕を動画に合成中（数分かかることがあります）...")
     cmd = ["ffmpeg", "-y"]
@@ -251,26 +288,16 @@ def burn_danmaku(video_path: str, ass_path: str, output_path: str, progress_plac
     # フィルター組み立て
     filters = [f"ass={ass_path}"]
     if telop_text:
-        # フォント検索パス
-        fontfile_candidates = [
-            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-            "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-            "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
-        ]
-        fontfile = ""
-        for fp in fontfile_candidates:
-            if os.path.exists(fp):
-                fontfile = fp
-                break
-        # エスケープ
+        fontfile = find_font_file(telop_font)
         safe_telop = telop_text.replace("'", "\\'").replace(":", "\\:")
         color = telop_color.replace("#", "0x")
+        s_color = telop_stroke_color.replace("#", "0x")
         drawtext = (
             f"drawtext=text='{safe_telop}'"
             f":fontsize={telop_font_size}"
             f":fontcolor={color}"
-            f":x=(w-text_w)/2:y=10"
-            f":borderw=3:bordercolor=black"
+            f":x=(w-text_w)/2:y=2"
+            f":borderw={telop_stroke_width}:bordercolor={s_color}"
         )
         if fontfile:
             drawtext += f":fontfile='{fontfile}'"
@@ -317,7 +344,18 @@ with st.expander("詳細設定"):
     with tcol3:
         telop_font_size = st.slider("テロップ文字サイズ", 12, 80, 36, step=4)
     with tcol4:
+        telop_font = st.selectbox("テロップフォント", [
+            "ゴシック（Noto Sans CJK JP）",
+            "明朝（Noto Serif CJK JP）",
+            "じゆうちょうフォント",
+        ], index=0)
+    tcol5, tcol6 = st.columns(2)
+    with tcol5:
         telop_color = st.color_picker("テロップ文字色", value="#FFFFFF")
+    with tcol6:
+        telop_stroke_color = st.color_picker("ストローク色", value="#000000")
+    telop_stroke_width = st.slider("ストローク太さ", 0, 10, 3, step=1)
+
     st.markdown("**弾幕設定**")
     col1, col2 = st.columns(2)
     with col1:
@@ -326,14 +364,33 @@ with st.expander("詳細設定"):
     with col2:
         include_emoji = st.checkbox("絵文字を含める", value=False)
 
+    # --- フォントCSS対応マップ ---
+    FONT_CSS_MAP = {
+        "ゴシック（Noto Sans CJK JP）": "'Noto Sans CJK JP', 'Hiragino Sans', sans-serif",
+        "明朝（Noto Serif CJK JP）": "'Noto Serif CJK JP', 'Hiragino Mincho ProN', serif",
+        "じゆうちょうフォント": "'Jiyucho', 'Hiragino Sans', sans-serif",
+    }
+    telop_css_font = FONT_CSS_MAP.get(telop_font, "sans-serif")
+
+    # --- ストロークCSS生成 ---
+    sw = telop_stroke_width
+    sc = telop_stroke_color
+    stroke_shadow = ", ".join([
+        f"{dx}px {dy}px 0 {sc}"
+        for dx in range(-sw, sw + 1)
+        for dy in range(-sw, sw + 1)
+        if dx != 0 or dy != 0
+    ]) if sw > 0 else "none"
+
     # --- 動画風プレビュー（16:9） ---
     st.markdown("**プレビュー（実際の動画イメージ）**")
     telop_html = ""
     if telop_text:
         telop_html = (
-            f'<div style="position:absolute; top:8px; left:0; right:0; text-align:center; z-index:2;">'
+            f'<div style="position:absolute; top:0; left:0; right:0; text-align:center; z-index:2; padding:2px 0;">'
             f'<span style="font-size:{telop_font_size}px; color:{telop_color}; '
-            f'text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000;">'
+            f'font-family:{telop_css_font}; '
+            f'text-shadow: {stroke_shadow};">'
             f'{telop_text}</span></div>'
         )
     st.markdown(
@@ -420,7 +477,8 @@ if st.button("弾幕動画を生成", type="primary", use_container_width=True):
             success, err_msg = burn_danmaku(video_path, ass_path, output_path, progress,
                                             start_seconds=start_sec, end_seconds=end_sec,
                                             telop_text=telop_text, telop_font_size=telop_font_size,
-                                            telop_color=telop_color)
+                                            telop_color=telop_color, telop_stroke_color=telop_stroke_color,
+                                            telop_stroke_width=telop_stroke_width, telop_font=telop_font)
 
             if not success:
                 st.error(f"動画の合成に失敗しました\n{err_msg}")
