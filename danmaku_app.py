@@ -65,6 +65,7 @@ def download_video_and_chat(url: str, work_dir: str, progress_placeholder):
     chat_path = os.path.join(work_dir, f"chat_{vid}.live_chat.json")
     cmd_chat = [
         "yt-dlp",
+        "--js-runtimes", "nodejs",
         "--skip-download",
         "--write-subs",
         "--sub-lang", "live_chat",
@@ -81,6 +82,7 @@ def download_video_and_chat(url: str, work_dir: str, progress_placeholder):
     video_path = os.path.join(work_dir, f"video_{vid}.mp4")
     cmd_video = [
         "yt-dlp",
+        "--js-runtimes", "nodejs",
         "-f", "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best",
         "--merge-output-format", "mp4",
         "-o", video_path,
