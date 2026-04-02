@@ -106,6 +106,7 @@ def chat_to_ass(
     font_size: int = 48,
     scroll_duration: float = 8.0,
     include_emoji: bool = False,
+    danmaku_font: str = "ゴシック（Noto Sans CJK JP）",
 ):
     """ライブチャットJSONをASS弾幕ファイルに変換"""
     line_height = font_size + 8
@@ -221,7 +222,7 @@ Timer: 100.0000
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Danmaku,{FONT_NAME},{font_size},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,2,0,0,0,1
+Style: Danmaku,{FONT_ASS_NAME_MAP.get(danmaku_font, FONT_NAME)},{font_size},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,2,0,0,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -235,6 +236,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 # ===========================================================
 # 3. FFmpegで弾幕を動画に焼き付け
 # ===========================================================
+FONT_ASS_NAME_MAP = {
+    "ゴシック（Noto Sans CJK JP）": "Noto Sans CJK JP",
+    "明朝（Noto Serif CJK JP）": "Noto Serif CJK JP",
+    "じゆうちょうフォント": "Jiyucho",
+}
+
 FONT_FILE_MAP = {
     "ゴシック（Noto Sans CJK JP）": [
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
@@ -362,6 +369,11 @@ with st.expander("詳細設定"):
         font_size = st.slider("弾幕文字サイズ", 12, 72, 48, step=4)
         scroll_speed = st.slider("スクロール速度（秒）", 4.0, 14.0, 8.0, step=0.5)
     with col2:
+        danmaku_font = st.selectbox("弾幕フォント", [
+            "ゴシック（Noto Sans CJK JP）",
+            "明朝（Noto Serif CJK JP）",
+            "じゆうちょうフォント",
+        ], index=0, key="danmaku_font")
         include_emoji = st.checkbox("絵文字を含める", value=False)
 
     # --- フォントCSS対応マップ ---
@@ -371,6 +383,7 @@ with st.expander("詳細設定"):
         "じゆうちょうフォント": "'Jiyucho', 'Hiragino Sans', sans-serif",
     }
     telop_css_font = FONT_CSS_MAP.get(telop_font, "sans-serif")
+    danmaku_css_font = FONT_CSS_MAP.get(danmaku_font, "sans-serif")
 
     # --- ストロークCSS生成 ---
     sw = telop_stroke_width
@@ -401,16 +414,19 @@ with st.expander("詳細設定"):
         # 弾幕（上部）
         f'<div style="position:absolute; top:25%; left:10%; z-index:1;">'
         f'<span style="font-size:{font_size}px; color:#0f0; white-space:nowrap; '
+        f'font-family:{danmaku_css_font}; '
         f'text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">'
         f'弾幕サンプルテキスト</span></div>'
         # 弾幕（中部）
         f'<div style="position:absolute; top:45%; right:5%; z-index:1;">'
         f'<span style="font-size:{font_size}px; color:#ff0; white-space:nowrap; '
+        f'font-family:{danmaku_css_font}; '
         f'text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">'
         f'コメントサンプル</span></div>'
         # 弾幕（下部）
         f'<div style="position:absolute; top:65%; left:30%; z-index:1;">'
         f'<span style="font-size:{font_size}px; color:#f0f; white-space:nowrap; '
+        f'font-family:{danmaku_css_font}; '
         f'text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;">'
         f'wwwww</span></div>'
         # 中央の再生ボタン風
@@ -463,6 +479,7 @@ if st.button("弾幕動画を生成", type="primary", use_container_width=True):
                 font_size=font_size,
                 scroll_duration=scroll_speed,
                 include_emoji=include_emoji,
+                danmaku_font=danmaku_font,
             )
             if count == 0:
                 st.error("チャットメッセージが見つかりませんでした")
