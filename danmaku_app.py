@@ -99,7 +99,8 @@ def download_video_and_chat(url: str, work_dir: str, progress_placeholder):
 def chat_to_ass(
     chat_path: str,
     ass_path: str,
-    max_seconds: int = 0,
+    start_seconds: int = 0,
+    end_seconds: int = 0,
     play_w: int = 640,
     play_h: int = 360,
     font_size: int = 48,
@@ -134,7 +135,9 @@ def chat_to_ass(
                 continue
             offset_ms = int(actions_wrapper.get("videoOffsetTimeMsec", 0))
             offset_s = offset_ms / 1000.0
-            if max_seconds > 0 and offset_s > max_seconds:
+            if start_seconds > 0 and offset_s < start_seconds:
+                continue
+            if end_seconds > 0 and offset_s > end_seconds:
                 break
             for action in actions_wrapper.get("actions", []):
                 chat_item = action.get("addChatItemAction", {}).get("item", {})
@@ -159,7 +162,8 @@ def chat_to_ass(
                     text = re.sub(r":[a-zA-Z0-9_]+:", "", text).strip()
                 if text and len(text) < max_text_len:
                     is_superchat = "liveChatPaidMessageRenderer" in chat_item
-                    messages.append((offset_s, text, is_superchat))
+                    adjusted_s = offset_s - start_seconds
+                    messages.append((adjusted_s, text, is_superchat))
 
     if not messages:
         return 0
@@ -231,12 +235,18 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 # ===========================================================
 # 3. FFmpegで弾幕を動画に焼き付け
 # ===========================================================
-def burn_danmaku(video_path: str, ass_path: str, output_path: str, progress_placeholder):
-    """ASSファイルを動画にオーバーレイ"""
+def burn_danmaku(video_path: str, ass_path: str, output_path: str, progress_placeholder,
+                 start_seconds: int = 0, end_seconds: int = 0):
+    """ASSファイルを動画にオーバーレイ（時間指定対応）"""
     progress_placeholder.text("弾幕を動画に合成中（数分かかることがあります）...")
-    cmd = [
-        "ffmpeg", "-y",
-        "-i", video_path,
+    cmd = ["ffmpeg", "-y"]
+    if start_seconds > 0:
+        cmd += ["-ss", str(start_seconds)]
+    cmd += ["-i", video_path]
+    if end_seconds > 0:
+        duration = end_seconds - start_seconds
+        cmd += ["-t", str(duration)]
+    cmd += [
         "-vf", f"ass={ass_path}",
         "-c:v", "libx264",
         "-preset", "ultrafast",
@@ -263,15 +273,33 @@ st.markdown(
 url = st.text_input("YouTube URL", placeholder="https://www.youtube.com/watch?v=...")
 
 with st.expander("詳細設定"):
+    st.markdown("**時間指定**（`MM:SS` または `HH:MM:SS` 形式）")
+    tcol1, tcol2 = st.columns(2)
+    with tcol1:
+        start_time_str = st.text_input("開始時間", value="00:00", placeholder="00:00")
+    with tcol2:
+        end_time_str = st.text_input("終了時間（空欄=最後まで）", value="", placeholder="30:00")
+
     col1, col2 = st.columns(2)
     with col1:
         font_size = st.slider("文字サイズ", 12, 72, 48, step=4)
         scroll_speed = st.slider("スクロール速度（秒）", 4.0, 14.0, 8.0, step=0.5)
     with col2:
-        max_minutes = st.number_input(
-            "最大時間（分, 0=全編）", min_value=0, max_value=300, value=30
-        )
         include_emoji = st.checkbox("絵文字を含める", value=False)
+
+
+def parse_time_str(t: str) -> int:
+    """MM:SS or HH:MM:SS 形式を秒に変換。空文字は0を返す"""
+    t = t.strip()
+    if not t:
+        return 0
+    parts = t.split(":")
+    parts = [int(p) for p in parts]
+    if len(parts) == 2:
+        return parts[0] * 60 + parts[1]
+    elif len(parts) == 3:
+        return parts[0] * 3600 + parts[1] * 60 + parts[2]
+    return 0
 
 if st.button("弾幕動画を生成", type="primary", use_container_width=True):
     if not url:
@@ -292,11 +320,13 @@ if st.button("弾幕動画を生成", type="primary", use_container_width=True):
             progress_bar.progress(50)
             progress.text("弾幕データを変換中...")
             ass_path = os.path.join(work_dir, "danmaku.ass")
-            max_sec = int(max_minutes * 60) if max_minutes > 0 else 0
+            start_sec = parse_time_str(start_time_str)
+            end_sec = parse_time_str(end_time_str)
             count = chat_to_ass(
                 chat_path,
                 ass_path,
-                max_seconds=max_sec,
+                start_seconds=start_sec,
+                end_seconds=end_sec,
                 font_size=font_size,
                 scroll_duration=scroll_speed,
                 include_emoji=include_emoji,
@@ -311,7 +341,8 @@ if st.button("弾幕動画を生成", type="primary", use_container_width=True):
             progress_bar.progress(60)
             output_filename = f"danmaku_{uuid.uuid4().hex[:6]}.mp4"
             output_path = str(OUTPUT_DIR / output_filename)
-            success, err_msg = burn_danmaku(video_path, ass_path, output_path, progress)
+            success, err_msg = burn_danmaku(video_path, ass_path, output_path, progress,
+                                            start_seconds=start_sec, end_seconds=end_sec)
 
             if not success:
                 st.error(f"動画の合成に失敗しました\n{err_msg}")
