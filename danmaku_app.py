@@ -236,8 +236,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 # 3. FFmpegで弾幕を動画に焼き付け
 # ===========================================================
 def burn_danmaku(video_path: str, ass_path: str, output_path: str, progress_placeholder,
-                 start_seconds: int = 0, end_seconds: int = 0):
-    """ASSファイルを動画にオーバーレイ（時間指定対応）"""
+                 start_seconds: int = 0, end_seconds: int = 0,
+                 telop_text: str = "", telop_font_size: int = 36, telop_color: str = "#FFFFFF"):
+    """ASSファイルを動画にオーバーレイ（時間指定・テロップ対応）"""
     progress_placeholder.text("弾幕を動画に合成中（数分かかることがあります）...")
     cmd = ["ffmpeg", "-y"]
     if start_seconds > 0:
@@ -246,8 +247,38 @@ def burn_danmaku(video_path: str, ass_path: str, output_path: str, progress_plac
     if end_seconds > 0:
         duration = end_seconds - start_seconds
         cmd += ["-t", str(duration)]
+
+    # フィルター組み立て
+    filters = [f"ass={ass_path}"]
+    if telop_text:
+        # フォント検索パス
+        fontfile_candidates = [
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+            "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
+        ]
+        fontfile = ""
+        for fp in fontfile_candidates:
+            if os.path.exists(fp):
+                fontfile = fp
+                break
+        # エスケープ
+        safe_telop = telop_text.replace("'", "\\'").replace(":", "\\:")
+        color = telop_color.replace("#", "0x")
+        drawtext = (
+            f"drawtext=text='{safe_telop}'"
+            f":fontsize={telop_font_size}"
+            f":fontcolor={color}"
+            f":x=(w-text_w)/2:y=10"
+            f":borderw=3:bordercolor=black"
+        )
+        if fontfile:
+            drawtext += f":fontfile='{fontfile}'"
+        filters.append(drawtext)
+
+    vf = ",".join(filters)
     cmd += [
-        "-vf", f"ass={ass_path}",
+        "-vf", vf,
         "-c:v", "libx264",
         "-preset", "ultrafast",
         "-crf", "26",
@@ -280,9 +311,18 @@ with st.expander("詳細設定"):
     with tcol2:
         end_time_str = st.text_input("終了時間（空欄=最後まで）", value="", placeholder="30:00")
 
+    st.markdown("**テロップ（画面上部に常時表示）**")
+    telop_text = st.text_input("テロップ文字（空欄=なし）", value="", placeholder="例：チャンネル登録よろしく！")
+    tcol3, tcol4 = st.columns(2)
+    with tcol3:
+        telop_font_size = st.slider("テロップ文字サイズ", 12, 80, 36, step=4)
+    with tcol4:
+        telop_color = st.color_picker("テロップ文字色", value="#FFFFFF")
+
+    st.markdown("**弾幕設定**")
     col1, col2 = st.columns(2)
     with col1:
-        font_size = st.slider("文字サイズ", 12, 72, 48, step=4)
+        font_size = st.slider("弾幕文字サイズ", 12, 72, 48, step=4)
         scroll_speed = st.slider("スクロール速度（秒）", 4.0, 14.0, 8.0, step=0.5)
     with col2:
         include_emoji = st.checkbox("絵文字を含める", value=False)
@@ -342,7 +382,9 @@ if st.button("弾幕動画を生成", type="primary", use_container_width=True):
             output_filename = f"danmaku_{uuid.uuid4().hex[:6]}.mp4"
             output_path = str(OUTPUT_DIR / output_filename)
             success, err_msg = burn_danmaku(video_path, ass_path, output_path, progress,
-                                            start_seconds=start_sec, end_seconds=end_sec)
+                                            start_seconds=start_sec, end_seconds=end_sec,
+                                            telop_text=telop_text, telop_font_size=telop_font_size,
+                                            telop_color=telop_color)
 
             if not success:
                 st.error(f"動画の合成に失敗しました\n{err_msg}")
