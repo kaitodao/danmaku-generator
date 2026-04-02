@@ -318,6 +318,14 @@ with st.expander("詳細設定"):
         telop_font_size = st.slider("テロップ文字サイズ", 12, 80, 36, step=4)
     with tcol4:
         telop_color = st.color_picker("テロップ文字色", value="#FFFFFF")
+    if telop_text:
+        st.markdown(
+            f'<div style="background:#222; padding:8px 12px; border-radius:6px; text-align:center;">'
+            f'<span style="font-size:{telop_font_size}px; color:{telop_color}; '
+            f'text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000;">'
+            f'{telop_text}</span></div>',
+            unsafe_allow_html=True,
+        )
 
     st.markdown("**弾幕設定**")
     col1, col2 = st.columns(2)
@@ -326,6 +334,15 @@ with st.expander("詳細設定"):
         scroll_speed = st.slider("スクロール速度（秒）", 4.0, 14.0, 8.0, step=0.5)
     with col2:
         include_emoji = st.checkbox("絵文字を含める", value=False)
+    st.markdown(
+        f'<div style="background:#222; padding:8px 12px; border-radius:6px; overflow:hidden;">'
+        f'<span style="font-size:{font_size}px; color:#0f0; white-space:nowrap;">'
+        f'弾幕サンプルテキスト</span>'
+        f'&nbsp;&nbsp;&nbsp;'
+        f'<span style="font-size:{font_size}px; color:#ff0; white-space:nowrap;">'
+        f'コメントサンプル</span></div>',
+        unsafe_allow_html=True,
+    )
 
 
 def parse_time_str(t: str) -> int:
